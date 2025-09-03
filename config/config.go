@@ -68,6 +68,9 @@ var (
 	// MaxAgeInHours is the maximum age of messages in hours, set with parseMaxAge() using MaxAge value
 	MaxAgeInHours int
 
+	// KeepEmailsForever disables automatic pruning of emails based on MaxMessages and MaxAge
+	KeepEmailsForever bool
+
 	// UseMessageDates sets the Created date using the message date, not the delivered date
 	UseMessageDates bool
 
@@ -226,6 +229,9 @@ var (
 
 	// DemoMode disables SMTP relay, link checking & HTTP send functionality
 	DemoMode = false
+
+	// DBDriver allows explicit selection of the database driver (sqlite, postgres, rqlite)
+	DBDriver string
 )
 
 // AutoTag struct for auto-tagging

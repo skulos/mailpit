@@ -91,6 +91,7 @@ func init() {
 	rootCmd.Flags().StringVar(&config.TenantID, "tenant-id", config.TenantID, "Database tenant ID to isolate data")
 	rootCmd.Flags().IntVarP(&config.MaxMessages, "max", "m", config.MaxMessages, "Max number of messages to store")
 	rootCmd.Flags().StringVar(&config.MaxAge, "max-age", config.MaxAge, "Max age of messages in either (h)ours or (d)ays (eg: 3d)")
+	rootCmd.Flags().BoolVar(&config.KeepEmailsForever, "keep-emails-forever", config.KeepEmailsForever, "Keep all emails forever (disables automatic pruning)")
 	rootCmd.Flags().BoolVar(&config.UseMessageDates, "use-message-dates", config.UseMessageDates, "Use message dates as the received dates")
 	rootCmd.Flags().BoolVar(&config.IgnoreDuplicateIDs, "ignore-duplicate-ids", config.IgnoreDuplicateIDs, "Ignore duplicate messages (by Message-ID)")
 	rootCmd.Flags().StringVar(&logger.LogFile, "log-file", logger.LogFile, "Log output to file instead of stdout")
@@ -187,6 +188,9 @@ func init() {
 	// DEPRECATED FLAG 2024/04/13 - no longer used
 	rootCmd.Flags().BoolVar(&config.DisableHTMLCheck, "disable-html-check", config.DisableHTMLCheck, "Disable the HTML check functionality (web UI & API)")
 	rootCmd.Flags().Lookup("disable-html-check").Hidden = true
+
+	// Add to init()
+	rootCmd.Flags().StringVar(&config.DBDriver, "db-driver", config.DBDriver, "Explicitly set the database driver (sqlite, postgres, rqlite)")
 }
 
 // Load settings from environment
@@ -213,6 +217,9 @@ func initConfigFromEnv() {
 	}
 	if len(os.Getenv("MP_MAX_AGE")) > 0 {
 		config.MaxAge = os.Getenv("MP_MAX_AGE")
+	}
+	if getEnabledFromEnv("MP_KEEP_EMAILS_FOREVER") {
+		config.KeepEmailsForever = true
 	}
 	if getEnabledFromEnv("MP_USE_MESSAGE_DATES") {
 		config.UseMessageDates = true
@@ -388,6 +395,11 @@ func initConfigFromEnv() {
 
 	// Demo mode
 	config.DemoMode = getEnabledFromEnv("MP_DEMO_MODE")
+
+	// Add to initConfigFromEnv()
+	if len(os.Getenv("MP_DB_DRIVER")) > 0 {
+		config.DBDriver = os.Getenv("MP_DB_DRIVER")
+	}
 }
 
 // load deprecated settings from environment and warn

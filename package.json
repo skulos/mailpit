@@ -4,9 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "MINIFY=true node esbuild.config.mjs",
-    "watch": "WATCH=true node esbuild.config.mjs",
-    "package": "MINIFY=true node esbuild.config.mjs",
+    "build": "cross-env MINIFY=true node esbuild.config.mjs",
+    "watch": "cross-env WATCH=true node esbuild.config.mjs",
+    "package": "cross-env MINIFY=true node esbuild.config.mjs",
     "update-caniemail": "wget -O internal/htmlcheck/caniemail-data.json https://www.caniemail.com/api/data.json",
     "lint": "eslint --max-warnings 0 && prettier -c .",
     "lint-fix": "eslint --fix && prettier --write ."
@@ -21,6 +21,7 @@
     "dompurify": "^3.1.6",
     "highlight.js": "^11.11.1",
     "ical.js": "^2.0.1",
+    "minify": "^14.0.0",
     "mitt": "^3.0.1",
     "modern-screenshot": "^4.4.30",
     "rapidoc": "^9.3.4",
@@ -35,6 +36,7 @@
     "@types/bootstrap": "^5.2.7",
     "@types/tinycon": "^0.6.3",
     "@vue/compiler-sfc": "^3.2.37",
+    "cross-env": "^7.0.3",
     "esbuild": "^0.25.0",
     "esbuild-plugin-vue-next": "^0.1.4",
     "esbuild-sass-plugin": "^3.0.0",

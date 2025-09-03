@@ -3,13 +3,10 @@ package storage
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
 	"os/signal"
 	"path"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -26,7 +23,7 @@ import (
 )
 
 var (
-	db           *sql.DB
+	db           Database
 	sqlDriver    string
 	dbLastAction time.Time
 
@@ -66,6 +63,7 @@ func InitDB() error {
 
 	p := config.Database
 
+	// Detect driver and create DSN
 	if p == "" {
 		// when no path is provided then we create a temporary file
 		// which will get deleted on Close(), SIGINT or SIGTERM
@@ -75,31 +73,28 @@ func InitDB() error {
 		sqlDriver = "sqlite"
 		dsn = p
 		logger.Log().Debugf("[db] using temporary database: %s", p)
-	} else if strings.HasPrefix(p, "http://") || strings.HasPrefix(p, "https://") {
-		sqlDriver = "rqlite"
-		dsn = p
-		logger.Log().Debugf("[db] opening rqlite database %s", p)
 	} else {
-		p = filepath.Clean(p)
-		sqlDriver = "sqlite"
-		dsn = fmt.Sprintf("file:%s?cache=shared", p)
-		logger.Log().Debugf("[db] opening database %s", p)
+		factory := NewDatabaseFactory()
+		if config.DBDriver != "" {
+			sqlDriver = config.DBDriver
+		} else {
+			sqlDriver = factory.DetectDriverFromDSN(p)
+		}
+		dsn = p
+		logger.Log().Debugf("[db] opening %s database %s", sqlDriver, p)
 	}
 
 	config.Database = p
 
-	if sqlDriver == "sqlite" {
-		if !isFile(p) {
-			// try create a file to ensure permissions
-			f, err := os.Create(p)
-			if err != nil {
-				return fmt.Errorf("[db] %s", err.Error())
-			}
-			_ = f.Close()
-		}
+	// Create database using factory
+	factory := NewDatabaseFactory()
+	dbConfig := DatabaseConfig{
+		Driver:   sqlDriver,
+		DSN:      dsn,
+		TenantID: config.TenantID,
 	}
 
-	db, err = sql.Open(sqlDriver, dsn)
+	db, err = factory.CreateDatabase(dbConfig)
 	if err != nil {
 		return err
 	}
@@ -114,25 +109,8 @@ func InitDB() error {
 		}
 	}
 
-	// prevent "database locked" errors
-	// @see https://github.com/mattn/go-sqlite3#faq
-	db.SetMaxOpenConns(1)
-
-	if sqlDriver == "sqlite" {
-		if config.DisableWAL {
-			// disable WAL mode for SQLite, allows NFS mounted DBs
-			_, err = db.Exec("PRAGMA journal_mode=DELETE; PRAGMA synchronous=NORMAL;")
-		} else {
-			// SQLite performance tuning (https://phiresky.github.io/blog/2020/sqlite-performance-tuning/)
-			_, err = db.Exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")
-		}
-		if err != nil {
-			return err
-		}
-	}
-
 	// create tables if necessary & apply migrations
-	if err := dbApplySchemas(); err != nil {
+	if err := db.ApplySchemas(); err != nil {
 		return err
 	}
 
@@ -242,17 +220,9 @@ func CountRead() uint64 {
 	return uint64(total)
 }
 
-// DbSize returns the size of the SQLite database.
+// DbSize returns the size of the database.
 func DbSize() uint64 {
-	var total sql.NullFloat64 // use float64 for rqlite compatibility
-
-	err := db.QueryRow("SELECT page_count * page_size AS size FROM pragma_page_count(), pragma_page_size()").Scan(&total)
-
-	if err != nil {
-		logger.Log().Errorf("[db] %s", err.Error())
-	}
-
-	return uint64(total.Float64)
+	return db.GetDbSize()
 }
 
 // MessageIDExists checks whether a Message-ID exists in the DB
