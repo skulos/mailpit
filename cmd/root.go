@@ -191,6 +191,14 @@ func init() {
 
 	// Add to init()
 	rootCmd.Flags().StringVar(&config.DBDriver, "db-driver", config.DBDriver, "Explicitly set the database driver (sqlite, postgres, rqlite)")
+
+	// PostgreSQL configuration
+	rootCmd.Flags().StringVar(&config.PostgresHost, "postgres-host", config.PostgresHost, "PostgreSQL server host")
+	rootCmd.Flags().StringVar(&config.PostgresPort, "postgres-port", config.PostgresPort, "PostgreSQL server port")
+	rootCmd.Flags().StringVar(&config.PostgresDBName, "postgres-dbname", config.PostgresDBName, "PostgreSQL database name")
+	rootCmd.Flags().StringVar(&config.PostgresUser, "postgres-user", config.PostgresUser, "PostgreSQL username")
+	rootCmd.Flags().StringVar(&config.PostgresPassword, "postgres-password", config.PostgresPassword, "PostgreSQL password")
+	rootCmd.Flags().StringVar(&config.PostgresSSLMode, "postgres-sslmode", config.PostgresSSLMode, "PostgreSQL SSL mode (disable, require, verify-ca, verify-full)")
 }
 
 // Load settings from environment
@@ -399,6 +407,26 @@ func initConfigFromEnv() {
 	// Add to initConfigFromEnv()
 	if len(os.Getenv("MP_DB_DRIVER")) > 0 {
 		config.DBDriver = os.Getenv("MP_DB_DRIVER")
+	}
+
+	// PostgreSQL configuration
+	if len(os.Getenv("MP_POSTGRES_HOST")) > 0 {
+		config.PostgresHost = os.Getenv("MP_POSTGRES_HOST")
+	}
+	if len(os.Getenv("MP_POSTGRES_PORT")) > 0 {
+		config.PostgresPort = os.Getenv("MP_POSTGRES_PORT")
+	}
+	if len(os.Getenv("MP_POSTGRES_DBNAME")) > 0 {
+		config.PostgresDBName = os.Getenv("MP_POSTGRES_DBNAME")
+	}
+	if len(os.Getenv("MP_POSTGRES_USER")) > 0 {
+		config.PostgresUser = os.Getenv("MP_POSTGRES_USER")
+	}
+	if len(os.Getenv("MP_POSTGRES_PASSWORD")) > 0 {
+		config.PostgresPassword = os.Getenv("MP_POSTGRES_PASSWORD")
+	}
+	if len(os.Getenv("MP_POSTGRES_SSLMODE")) > 0 {
+		config.PostgresSSLMode = os.Getenv("MP_POSTGRES_SSLMODE")
 	}
 }
 

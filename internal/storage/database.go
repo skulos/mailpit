@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"strings"
 	"syscall"
 	"time"
 
@@ -81,6 +82,12 @@ func InitDB() error {
 			sqlDriver = factory.DetectDriverFromDSN(p)
 		}
 		dsn = p
+
+		// If using PostgreSQL and individual components are provided, build DSN from components
+		if sqlDriver == "postgres" && config.PostgresHost != "" {
+			dsn = buildPostgresDSN()
+		}
+
 		logger.Log().Debugf("[db] opening %s database %s", sqlDriver, p)
 	}
 
@@ -235,4 +242,40 @@ func MessageIDExists(id string) bool {
 		QueryRowAndClose(context.TODO(), db)
 
 	return total != 0
+}
+
+// buildPostgresDSN builds a PostgreSQL DSN from individual configuration components
+func buildPostgresDSN() string {
+	var dsn strings.Builder
+
+	// Build the DSN using key=value format
+	dsn.WriteString("host=" + config.PostgresHost)
+
+	if config.PostgresPort != "" {
+		dsn.WriteString(" port=" + config.PostgresPort)
+	} else {
+		dsn.WriteString(" port=5432") // Default PostgreSQL port
+	}
+
+	if config.PostgresDBName != "" {
+		dsn.WriteString(" dbname=" + config.PostgresDBName)
+	} else {
+		dsn.WriteString(" dbname=mailpit") // Default database name
+	}
+
+	if config.PostgresUser != "" {
+		dsn.WriteString(" user=" + config.PostgresUser)
+	}
+
+	if config.PostgresPassword != "" {
+		dsn.WriteString(" password=" + config.PostgresPassword)
+	}
+
+	if config.PostgresSSLMode != "" {
+		dsn.WriteString(" sslmode=" + config.PostgresSSLMode)
+	} else {
+		dsn.WriteString(" sslmode=prefer") // Default SSL mode
+	}
+
+	return dsn.String()
 }

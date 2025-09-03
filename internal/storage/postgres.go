@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/axllent/mailpit/internal/logger"
 
@@ -45,6 +47,25 @@ func NewPostgresDatabase(config DatabaseConfig) (*PostgresDatabase, error) {
 	return postgresDB, nil
 }
 
+// convertSQLiteToPostgres converts SQLite-compatible queries to PostgreSQL-compatible queries
+func (p *PostgresDatabase) convertSQLiteToPostgres(query string) string {
+	// Replace ? placeholders with $1, $2, $3... format
+	placeholderRegex := regexp.MustCompile(`\?`)
+	counter := 1
+
+	converted := placeholderRegex.ReplaceAllStringFunc(query, func(match string) string {
+		result := fmt.Sprintf("$%d", counter)
+		counter++
+		return result
+	})
+
+	// Fix column name case issues - PostgreSQL is case-sensitive
+	converted = strings.ReplaceAll(converted, "MessageID", "message_id")
+	converted = strings.ReplaceAll(converted, "SearchText", "search_text")
+
+	return converted
+}
+
 // configurePostgres sets up PostgreSQL-specific configurations
 func (p *PostgresDatabase) configurePostgres() error {
 	// Set timezone to UTC for consistency
@@ -69,32 +90,44 @@ func (p *PostgresDatabase) BeginTx(ctx context.Context, opts *sql.TxOptions) (*s
 
 // Exec implements Database.Exec
 func (p *PostgresDatabase) Exec(query string, args ...interface{}) (sql.Result, error) {
-	return p.db.Exec(query, args...)
+	convertedQuery := p.convertSQLiteToPostgres(query)
+	logger.Log().Debugf("[postgres] converted query: %s", convertedQuery)
+	return p.db.Exec(convertedQuery, args...)
 }
 
 // Query implements Database.Query
 func (p *PostgresDatabase) Query(query string, args ...interface{}) (*sql.Rows, error) {
-	return p.db.Query(query, args...)
+	convertedQuery := p.convertSQLiteToPostgres(query)
+	logger.Log().Debugf("[postgres] converted query: %s", convertedQuery)
+	return p.db.Query(convertedQuery, args...)
 }
 
 // QueryRow implements Database.QueryRow
 func (p *PostgresDatabase) QueryRow(query string, args ...interface{}) *sql.Row {
-	return p.db.QueryRow(query, args...)
+	convertedQuery := p.convertSQLiteToPostgres(query)
+	logger.Log().Debugf("[postgres] converted query: %s", convertedQuery)
+	return p.db.QueryRow(convertedQuery, args...)
 }
 
 // ExecContext implements Database.ExecContext
 func (p *PostgresDatabase) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
-	return p.db.ExecContext(ctx, query, args...)
+	convertedQuery := p.convertSQLiteToPostgres(query)
+	logger.Log().Debugf("[postgres] converted query: %s", convertedQuery)
+	return p.db.ExecContext(ctx, convertedQuery, args...)
 }
 
 // QueryContext implements Database.QueryContext
 func (p *PostgresDatabase) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
-	return p.db.QueryContext(ctx, query, args...)
+	convertedQuery := p.convertSQLiteToPostgres(query)
+	logger.Log().Debugf("[postgres] converted query: %s", convertedQuery)
+	return p.db.QueryContext(ctx, convertedQuery, args...)
 }
 
 // QueryRowContext implements Database.QueryRowContext
 func (p *PostgresDatabase) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	return p.db.QueryRowContext(ctx, query, args...)
+	convertedQuery := p.convertSQLiteToPostgres(query)
+	logger.Log().Debugf("[postgres] converted query: %s", convertedQuery)
+	return p.db.QueryRowContext(ctx, convertedQuery, args...)
 }
 
 // GetDbSize implements Database.GetDbSize

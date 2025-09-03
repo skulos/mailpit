@@ -54,6 +54,25 @@ var (
 	// allowing multiple isolated instances of Mailpit to share a database.
 	TenantID string
 
+	// PostgreSQL configuration (used when Database is a postgres DSN and individual components are provided)
+	// PostgresHost is the PostgreSQL server host
+	PostgresHost string
+
+	// PostgresPort is the PostgreSQL server port
+	PostgresPort string
+
+	// PostgresDBName is the PostgreSQL database name
+	PostgresDBName string
+
+	// PostgresUser is the PostgreSQL username
+	PostgresUser string
+
+	// PostgresPassword is the PostgreSQL password
+	PostgresPassword string
+
+	// PostgresSSLMode is the PostgreSQL SSL mode (disable, require, verify-ca, verify-full)
+	PostgresSSLMode string
+
 	// Label to identify this Mailpit instance (optional).
 	// This gets applied to web UI, SMTP and optional POP3 server.
 	Label string
