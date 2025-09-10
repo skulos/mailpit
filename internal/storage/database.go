@@ -64,6 +64,11 @@ func InitDB() error {
 
 	p := config.Database
 
+	// If using PostgreSQL with explicit driver, set a non-empty database path
+	if config.DBDriver == "postgres" && p == "" {
+		p = "postgres"
+	}
+
 	// Detect driver and create DSN
 	if p == "" {
 		// when no path is provided then we create a temporary file

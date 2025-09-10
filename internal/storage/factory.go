@@ -19,7 +19,8 @@ func (f *DatabaseFactoryImpl) CreateDatabase(config DatabaseConfig) (Database, e
 	case "sqlite":
 		return NewSQLiteDatabase(config)
 	case "postgres":
-		return NewPostgresDatabase(config)
+		return NewGormPostgresDatabase(config)
+		// return NewPostgresDatabase(config)
 	case "rqlite":
 		return NewRQLiteDatabase(config)
 	default:

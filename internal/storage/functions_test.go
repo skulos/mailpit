@@ -19,7 +19,16 @@ var (
 func setup(tenantID string) {
 	logger.NoLogging = true
 	config.MaxMessages = 0
-	config.Database = os.Getenv("MP_DATABASE")
+
+	// Force SQLite for tests - use temp file if no database specified
+	if os.Getenv("MP_DATABASE") == "" {
+		config.Database = "" // This will trigger temp SQLite file creation
+	} else {
+		config.Database = os.Getenv("MP_DATABASE")
+	}
+
+	// Explicitly set SQLite driver for tests
+	config.DBDriver = "sqlite"
 	config.TenantID = config.DBTenantID(tenantID)
 
 	if err := InitDB(); err != nil {

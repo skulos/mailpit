@@ -201,21 +201,35 @@ func DeleteSearch(search, timezone string) error {
 				delIDs[i] = id
 			}
 
-			sqlDelete1 := `DELETE FROM ` + tenant("mailbox") + ` WHERE ID IN (?` + strings.Repeat(",?", len(ids)-1) + `)` // #nosec
+			buildPlaceholders := func(n int) string {
+				if n <= 0 {
+					return "()"
+				}
+				if sqlDriver == "postgres" {
+					parts := make([]string, n)
+					for i := 0; i < n; i++ {
+						parts[i] = fmt.Sprintf("$%d", i+1)
+					}
+					return "(" + strings.Join(parts, ",") + ")"
+				}
+				return "(" + "?" + strings.Repeat(",?", n-1) + ")"
+			}
+
+			sqlDelete1 := `DELETE FROM ` + tenant("mailbox") + ` WHERE ID IN ` + buildPlaceholders(len(ids)) // #nosec
 
 			_, err = tx.Exec(sqlDelete1, delIDs...)
 			if err != nil {
 				return err
 			}
 
-			sqlDelete2 := `DELETE FROM ` + tenant("mailbox_data") + ` WHERE ID IN (?` + strings.Repeat(",?", len(ids)-1) + `)` // #nosec
+			sqlDelete2 := `DELETE FROM ` + tenant("mailbox_data") + ` WHERE ID IN ` + buildPlaceholders(len(ids)) // #nosec
 
 			_, err = tx.Exec(sqlDelete2, delIDs...)
 			if err != nil {
 				return err
 			}
 
-			sqlDelete3 := `DELETE FROM ` + tenant("message_tags") + ` WHERE ID IN (?` + strings.Repeat(",?", len(ids)-1) + `)` // #nosec
+			sqlDelete3 := `DELETE FROM ` + tenant("message_tags") + ` WHERE ID IN ` + buildPlaceholders(len(ids)) // #nosec
 
 			_, err = tx.Exec(sqlDelete3, delIDs...)
 			if err != nil {
