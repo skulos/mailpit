@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -27,7 +28,7 @@ type GormPostgresDatabase struct {
 // NewGormPostgresDatabase creates a new GORM-based PostgreSQL database instance
 func NewGormPostgresDatabase(dbConfig DatabaseConfig) (*GormPostgresDatabase, error) {
 	// First, ensure the database exists
-	if err := ensurePostgresDatabaseExists(dbConfig.DSN); err != nil {
+	if err := ensurePostgresDatabaseExists(); err != nil {
 		return nil, fmt.Errorf("failed to ensure database exists: %w", err)
 	}
 
@@ -36,6 +37,9 @@ func NewGormPostgresDatabase(dbConfig DatabaseConfig) (*GormPostgresDatabase, er
 	if logger.Log().Level.String() == "debug" {
 		gormLogger = gormlogger.Default.LogMode(gormlogger.Info)
 	}
+
+	// Assign dsn
+	dbConfig.DSN = buildPostgresAdminDSN()
 
 	// Open GORM connection
 	db, err := gorm.Open(postgres.Open(dbConfig.DSN), &gorm.Config{
@@ -258,7 +262,7 @@ func (p *GormPostgresDatabase) dbApplyGormSchemas() error {
 }
 
 // ensurePostgresDatabaseExists checks if the database exists and creates it if it doesn't
-func ensurePostgresDatabaseExists(dsn string) error {
+func ensurePostgresDatabaseExists() error {
 	// Parse DSN to extract database name
 	// dbName, err := extractDatabaseNameFromDSN(dsn)
 	// logger.Log().Infof("[db] dsn: %s", dsn)
@@ -283,6 +287,7 @@ func ensurePostgresDatabaseExists(dsn string) error {
 	dbName := config.Database
 
 	// Connect to postgres database
+	log.Println("Opening GORM connection to PostgreSQL: ", defaultDSN)
 	db, err := sql.Open("postgres", defaultDSN)
 	if err != nil {
 		return fmt.Errorf("failed to connect to postgres database: %w", err)
