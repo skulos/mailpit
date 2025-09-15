@@ -199,6 +199,7 @@ func init() {
 	rootCmd.Flags().StringVar(&config.PostgresUser, "postgres-user", config.PostgresUser, "PostgreSQL username")
 	rootCmd.Flags().StringVar(&config.PostgresPassword, "postgres-password", config.PostgresPassword, "PostgreSQL password")
 	rootCmd.Flags().StringVar(&config.PostgresSSLMode, "postgres-sslmode", config.PostgresSSLMode, "PostgreSQL SSL mode (disable, require, verify-ca, verify-full)")
+	rootCmd.Flags().StringVar(&config.PostgresSocket, "postgres-socket", config.PostgresSocket, "PostgreSQL Unix domain socket directory (overrides host/port if set)")
 }
 
 // Load settings from environment
@@ -427,6 +428,9 @@ func initConfigFromEnv() {
 	}
 	if len(os.Getenv("MP_POSTGRES_SSLMODE")) > 0 {
 		config.PostgresSSLMode = os.Getenv("MP_POSTGRES_SSLMODE")
+	}
+	if len(os.Getenv("MP_POSTGRES_SOCKET")) > 0 {
+		config.PostgresSocket = os.Getenv("MP_POSTGRES_SOCKET")
 	}
 }
 

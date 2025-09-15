@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/axllent/mailpit/config"
 	"github.com/axllent/mailpit/internal/logger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -23,9 +25,9 @@ type GormPostgresDatabase struct {
 }
 
 // NewGormPostgresDatabase creates a new GORM-based PostgreSQL database instance
-func NewGormPostgresDatabase(config DatabaseConfig) (*GormPostgresDatabase, error) {
+func NewGormPostgresDatabase(dbConfig DatabaseConfig) (*GormPostgresDatabase, error) {
 	// First, ensure the database exists
-	if err := ensurePostgresDatabaseExists(config.DSN); err != nil {
+	if err := ensurePostgresDatabaseExists(dbConfig.DSN); err != nil {
 		return nil, fmt.Errorf("failed to ensure database exists: %w", err)
 	}
 
@@ -36,7 +38,7 @@ func NewGormPostgresDatabase(config DatabaseConfig) (*GormPostgresDatabase, erro
 	}
 
 	// Open GORM connection
-	db, err := gorm.Open(postgres.Open(config.DSN), &gorm.Config{
+	db, err := gorm.Open(postgres.Open(dbConfig.DSN), &gorm.Config{
 		Logger: gormLogger,
 	})
 	if err != nil {
@@ -56,9 +58,9 @@ func NewGormPostgresDatabase(config DatabaseConfig) (*GormPostgresDatabase, erro
 	gormDB := &GormPostgresDatabase{
 		db:       db,
 		sqlDB:    sqlDB,
-		dsn:      config.DSN,
+		dsn:      dbConfig.DSN,
 		driver:   "postgres",
-		tenantID: config.TenantID,
+		tenantID: dbConfig.TenantID,
 	}
 
 	// Configure PostgreSQL settings
@@ -258,24 +260,27 @@ func (p *GormPostgresDatabase) dbApplyGormSchemas() error {
 // ensurePostgresDatabaseExists checks if the database exists and creates it if it doesn't
 func ensurePostgresDatabaseExists(dsn string) error {
 	// Parse DSN to extract database name
-	dbName, err := extractDatabaseNameFromDSN(dsn)
-	logger.Log().Infof("[db] dsn: %s", dsn)
-	if err != nil {
-		return fmt.Errorf("failed to extract database name from DSN: %w", err)
-	}
+	// dbName, err := extractDatabaseNameFromDSN(dsn)
+	// logger.Log().Infof("[db] dsn: %s", dsn)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to extract database name from DSN: %w", err)
+	// }
 
-	// Create a connection to the default 'postgres' database
-	var defaultDSN string
-	if strings.HasPrefix(dsn, "postgres://") {
-		// URL format
-		defaultDSN = strings.Replace(dsn, "/"+dbName+"?", "/postgres?", 1)
-		if !strings.Contains(defaultDSN, "/postgres?") {
-			defaultDSN = strings.Replace(dsn, "/"+dbName, "/postgres", 1)
-		}
-	} else {
-		// Key-value format
-		defaultDSN = strings.Replace(dsn, "dbname="+dbName, "dbname=postgres", 1)
-	}
+	// // Create a connection to the default 'postgres' database
+	// var defaultDSN string
+	// if strings.HasPrefix(dsn, "postgres://") {
+	// 	// URL format
+	// 	defaultDSN = strings.Replace(dsn, "/"+dbName+"?", "/postgres?", 1)
+	// 	if !strings.Contains(defaultDSN, "/postgres?") {
+	// 		defaultDSN = strings.Replace(dsn, "/"+dbName, "/postgres", 1)
+	// 	}
+	// } else {
+	// 	// Key-value format
+	// 	defaultDSN = strings.Replace(dsn, "dbname="+dbName, "dbname=postgres", 1)
+	// }
+
+	defaultDSN := buildPostgresAdminDSN() // always points to dbname=postgres
+	dbName := config.Database
 
 	// Connect to postgres database
 	db, err := sql.Open("postgres", defaultDSN)
@@ -335,6 +340,24 @@ func extractDatabaseNameFromDSN(dsn string) (string, error) {
 	}
 
 	return "", fmt.Errorf("no database name found in DSN")
+}
+
+func buildPostgresAdminDSN() string {
+	if config.PostgresSocket != "" {
+		return fmt.Sprintf("user=%s password=%s host=%s dbname=postgres sslmode=%s",
+			config.PostgresUser,
+			config.PostgresPassword,
+			filepath.Dir(config.PostgresSocket), // socket dir, not file
+			config.PostgresSSLMode,
+		)
+	}
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=postgres sslmode=%s",
+		config.PostgresHost,
+		config.PostgresPort,
+		config.PostgresUser,
+		config.PostgresPassword,
+		config.PostgresSSLMode,
+	)
 }
 
 // tenant applies an optional prefix to the table name

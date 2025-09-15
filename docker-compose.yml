@@ -6,7 +6,7 @@ services:
     container_name: mailpit-postgres-test
     environment:
     # application will the mailpit database
-      POSTGRES_DB: postgres
+      POSTGRES_DB: mailpit
       POSTGRES_USER: mailpit
       POSTGRES_PASSWORD: mailpit123
     ports:
@@ -16,24 +16,32 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    volumes:
+      - ./pg_socket:/var/run/postgresql
 
-  # mailpit:
-  #   build: .
-  #   container_name: mailpit-app
-  #   ports:
-  #     - "8025:8025"  # Web UI
-  #     - "1025:1025"  # SMTP
-  #   environment:
-  #     # PostgreSQL configuration using the new environment variables
-  #     MP_DB_DRIVER: postgres
-  #     MP_POSTGRES_HOST: postgres
-  #     MP_POSTGRES_PORT: 5432
-  #     MP_POSTGRES_DBNAME: mailpit
-  #     MP_POSTGRES_USER: mailpit
-  #     MP_POSTGRES_PASSWORD: mailpit123
-  #     MP_POSTGRES_SSLMODE: disable
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   restart: unless-stopped
+#   mailpit:
+#     build: .
+#     container_name: mailpit-app
+#     depends_on:
+#       postgres:
+#         condition: service_healthy
+#     volumes:
+#       - pg_socket:/var/run/postgresql
+#     command: [
+#       "mailpit",
+#       "--db-driver", "postgres",
+#       "--postgres-socket", "/var/run/postgresql",
+#       "--postgres-dbname", "mailpit",
+#       "--postgres-user", "mailpit",
+#       "--postgres-password", "mailpit123",
+#       "--postgres-sslmode", "disable",
+#       "-v"
+#     ]
+#     ports:
+#       - "8025:8025"  # Web UI
+#       - "1025:1025"  # SMTP
+#     restart: unless-stopped
+
+# volumes:
+#   pg_socket:
 

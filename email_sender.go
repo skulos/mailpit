@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func main() {
+func boom() {
 
 	// Mailpit SMTP server configuration
 	smtpHost := "localhost"

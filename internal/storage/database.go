@@ -104,6 +104,7 @@ func InitDB() error {
 		Driver:   sqlDriver,
 		DSN:      dsn,
 		TenantID: config.TenantID,
+		Database: config.Database,
 	}
 
 	db, err = factory.CreateDatabase(dbConfig)
@@ -254,12 +255,17 @@ func buildPostgresDSN() string {
 	var dsn strings.Builder
 
 	// Build the DSN using key=value format
-	dsn.WriteString("host=" + config.PostgresHost)
-
-	if config.PostgresPort != "" {
-		dsn.WriteString(" port=" + config.PostgresPort)
+	if config.PostgresSocket != "" {
+		// Use Unix domain socket directory instead of host/port
+		dsn.WriteString("host=" + config.PostgresSocket)
 	} else {
-		dsn.WriteString(" port=5432") // Default PostgreSQL port
+		dsn.WriteString("host=" + config.PostgresHost)
+
+		if config.PostgresPort != "" {
+			dsn.WriteString(" port=" + config.PostgresPort)
+		} else {
+			dsn.WriteString(" port=5432") // Default PostgreSQL port
+		}
 	}
 
 	if config.PostgresDBName != "" {

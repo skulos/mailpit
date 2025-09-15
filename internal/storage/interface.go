@@ -35,6 +35,7 @@ type DatabaseConfig struct {
 	Driver   string
 	DSN      string
 	TenantID string
+	Database string
 }
 
 // DatabaseFactory creates database instances based on configuration

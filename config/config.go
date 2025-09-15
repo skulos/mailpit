@@ -73,6 +73,10 @@ var (
 	// PostgresSSLMode is the PostgreSQL SSL mode (disable, require, verify-ca, verify-full)
 	PostgresSSLMode string
 
+	// PostgresSocket is the directory of the PostgreSQL Unix domain socket to connect via
+	// If set, this will be used instead of PostgresHost and PostgresPort
+	PostgresSocket string
+
 	// Label to identify this Mailpit instance (optional).
 	// This gets applied to web UI, SMTP and optional POP3 server.
 	Label string
