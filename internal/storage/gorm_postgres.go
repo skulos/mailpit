@@ -284,7 +284,7 @@ func ensurePostgresDatabaseExists() error {
 	// }
 
 	defaultDSN := buildPostgresAdminDSN() // always points to dbname=postgres
-	dbName := config.Database
+	dbName := config.PostgresDBName
 
 	// Connect to postgres database
 	log.Println("Opening GORM connection to PostgreSQL: ", defaultDSN)
@@ -298,7 +298,7 @@ func ensurePostgresDatabaseExists() error {
 	var exists bool
 	err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)", dbName).Scan(&exists)
 	if err != nil {
-		return fmt.Errorf("failed to check if database exists: %w", err)
+		logger.Log().Debugf("failed to check if database exists: %w", err)
 	}
 
 	if !exists {
@@ -349,18 +349,20 @@ func extractDatabaseNameFromDSN(dsn string) (string, error) {
 
 func buildPostgresAdminDSN() string {
 	if config.PostgresSocket != "" {
-		return fmt.Sprintf("user=%s password=%s host=%s dbname=postgres sslmode=%s",
+		return fmt.Sprintf("user=%s password=%s host=%s dbname=%s sslmode=%s",
 			config.PostgresUser,
 			config.PostgresPassword,
 			filepath.Dir(config.PostgresSocket), // socket dir, not file
+			config.PostgresDBName,
 			config.PostgresSSLMode,
 		)
 	}
-	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=postgres sslmode=%s",
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		config.PostgresHost,
 		config.PostgresPort,
 		config.PostgresUser,
 		config.PostgresPassword,
+		config.PostgresDBName,
 		config.PostgresSSLMode,
 	)
 }
