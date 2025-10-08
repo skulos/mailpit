@@ -283,11 +283,11 @@ func ensurePostgresDatabaseExists() error {
 	// 	defaultDSN = strings.Replace(dsn, "dbname="+dbName, "dbname=postgres", 1)
 	// }
 
-	defaultDSN := buildPostgresAdminDSN() // always points to dbname=postgres
+	defaultDSN, printSafeString := buildPostgresAdminDSN() // always points to dbname=postgres
 	dbName := config.PostgresDBName
 
 	// Connect to postgres database
-	log.Println("Opening GORM connection to PostgreSQL: ", defaultDSN)
+	log.Println("Opening GORM connection to PostgreSQL: ", printSafeString)
 	db, err := sql.Open("postgres", defaultDSN)
 	if err != nil {
 		return fmt.Errorf("failed to connect to postgres database: %w", err)
@@ -347,24 +347,35 @@ func extractDatabaseNameFromDSN(dsn string) (string, error) {
 	return "", fmt.Errorf("no database name found in DSN")
 }
 
-func buildPostgresAdminDSN() string {
+func buildPostgresAdminDSN() (string, string) {
 	if config.PostgresSocket != "" {
 		return fmt.Sprintf("user=%s password=%s host=%s dbname=%s sslmode=%s",
+				config.PostgresUser,
+				config.PostgresPassword,
+				filepath.Dir(config.PostgresSocket), // socket dir, not file
+				config.PostgresDBName,
+				config.PostgresSSLMode,
+			), fmt.Sprintf("user=%s password=*************************** host=%s dbname=%s sslmode=%s",
+				config.PostgresUser,
+				filepath.Dir(config.PostgresSocket), // socket dir, not file
+				config.PostgresDBName,
+				config.PostgresSSLMode,
+			)
+	}
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+			config.PostgresHost,
+			config.PostgresPort,
 			config.PostgresUser,
 			config.PostgresPassword,
-			filepath.Dir(config.PostgresSocket), // socket dir, not file
+			config.PostgresDBName,
+			config.PostgresSSLMode,
+		), fmt.Sprintf("host=%s port=%d user=%s password=*************************** dbname=%s sslmode=%s",
+			config.PostgresHost,
+			config.PostgresPort,
+			config.PostgresUser,
 			config.PostgresDBName,
 			config.PostgresSSLMode,
 		)
-	}
-	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		config.PostgresHost,
-		config.PostgresPort,
-		config.PostgresUser,
-		config.PostgresPassword,
-		config.PostgresDBName,
-		config.PostgresSSLMode,
-	)
 }
 
 // tenant applies an optional prefix to the table name
