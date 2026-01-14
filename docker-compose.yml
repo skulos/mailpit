@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: mailpit-postgres-test
+    environment:
+    # application will the mailpit database
+      POSTGRES_DB: mailpit
+      POSTGRES_USER: mailpit
+      POSTGRES_PASSWORD: mailpit123
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mailpit -d mailpit"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./pg_socket:/var/run/postgresql
+
+#   mailpit:
+#     build: .
+#     container_name: mailpit-app
+#     depends_on:
+#       postgres:
+#         condition: service_healthy
+#     volumes:
+#       - pg_socket:/var/run/postgresql
+#     command: [
+#       "mailpit",
+#       "--db-driver", "postgres",
+#       "--postgres-socket", "/var/run/postgresql",
+#       "--postgres-dbname", "mailpit",
+#       "--postgres-user", "mailpit",
+#       "--postgres-password", "mailpit123",
+#       "--postgres-sslmode", "disable",
+#       "-v"
+#     ]
+#     ports:
+#       - "8025:8025"  # Web UI
+#       - "1025:1025"  # SMTP
+#     restart: unless-stopped
+
+# volumes:
+#   pg_socket:
+

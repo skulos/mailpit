@@ -22,6 +22,14 @@ var (
 	addTagMutex   sync.RWMutex
 )
 
+// messageTagsTagIDColumn returns the correct column name for the tag id in message_tags per driver
+func messageTagsTagIDColumn() string {
+	if sqlDriver == "postgres" || sqlDriver == "rqlite" {
+		return "tag_id"
+	}
+	return "TagID"
+}
+
 // SetMessageTags will set the tags for a given database ID, removing any not in the array
 func SetMessageTags(id string, tags []string) ([]string, error) {
 	applyTags := []string{}
@@ -93,7 +101,7 @@ func addMessageTag(id, name string) (string, error) {
 		if err := sqlf.From(tenant("message_tags")).
 			Select("COUNT(ID)").To(&exists).
 			Where("ID = ?", id).
-			Where("TagID = ?", tagID).
+			Where(messageTagsTagIDColumn()+" = ?", tagID).
 			QueryRowAndClose(context.Background(), db); err != nil {
 			return "", err
 		}
@@ -106,7 +114,7 @@ func addMessageTag(id, name string) (string, error) {
 
 		_, err := sqlf.InsertInto(tenant("message_tags")).
 			Set("ID", id).
-			Set("TagID", tagID).
+			Set(messageTagsTagIDColumn(), tagID).
 			ExecAndClose(context.TODO(), db)
 
 		return foundName.String, err
@@ -130,7 +138,7 @@ func addMessageTag(id, name string) (string, error) {
 func deleteMessageTag(id, name string) error {
 	if _, err := sqlf.DeleteFrom(tenant("message_tags")).
 		Where(tenant("message_tags.ID")+" = ?", id).
-		Where(tenant("message_tags.Key")+` IN (SELECT Key FROM `+tenant("message_tags")+` LEFT JOIN `+tenant("tags")+` ON TagID=`+tenant("tags.ID")+` WHERE Name = ?)`, name).
+		Where(tenant("message_tags.Key")+` IN (SELECT Key FROM `+tenant("message_tags")+` LEFT JOIN `+tenant("tags")+` ON `+tenant("message_tags."+messageTagsTagIDColumn())+` = `+tenant("tags.ID")+` WHERE Name = ?)`, name).
 		ExecAndClose(context.TODO(), db); err != nil {
 		return err
 	}
@@ -164,10 +172,10 @@ func GetAllTagsCount() map[string]int64 {
 
 	if err := sqlf.
 		Select(`Name`).To(&name).
-		Select(`COUNT(`+tenant("message_tags.TagID")+`) as total`).To(&total).
+		Select(`COUNT(`+tenant("message_tags."+messageTagsTagIDColumn())+`) as total`).To(&total).
 		From(tenant("tags")).
-		LeftJoin(tenant("message_tags"), tenant("tags.ID")+" = "+tenant("message_tags.TagID")).
-		GroupBy(tenant("message_tags.TagID")).
+		LeftJoin(tenant("message_tags"), tenant("tags.ID")+" = "+tenant("message_tags."+messageTagsTagIDColumn())).
+		GroupBy(tenant("message_tags."+messageTagsTagIDColumn())).
 		OrderBy("Name").
 		QueryAndClose(context.TODO(), db, func(row *sql.Rows) {
 			tags[name] = int64(total)
@@ -234,7 +242,7 @@ func DeleteTag(tag string) error {
 
 	// delete all references
 	q = sqlf.DeleteFrom(tenant("message_tags")).
-		Where(`TagID = ?`, id)
+		Where(messageTagsTagIDColumn()+` = ?`, id)
 	_, err = q.ExecAndClose(context.Background(), db)
 	if err != nil {
 		return fmt.Errorf("error deleting tag references: %s", err.Error())
@@ -255,7 +263,7 @@ func DeleteTag(tag string) error {
 func pruneUnusedTags() error {
 	q := sqlf.From(tenant("tags")).
 		Select(tenant("tags.ID")+", "+tenant("tags.Name")+", COUNT("+tenant("message_tags.ID")+") as COUNT").
-		LeftJoin(tenant("message_tags"), tenant("tags.ID")+" = "+tenant("message_tags.TagID")).
+		LeftJoin(tenant("message_tags"), tenant("tags.ID")+" = "+tenant("message_tags."+messageTagsTagIDColumn())).
 		GroupBy(tenant("tags.ID"))
 
 	toDel := []int{}
@@ -348,8 +356,8 @@ func getMessageTags(id string) []string {
 
 	if err := sqlf.
 		Select(`Name`).To(&name).
-		From(tenant("Tags")).
-		LeftJoin(tenant("message_tags"), tenant("Tags.ID")+"="+tenant("message_tags.TagID")).
+		From(tenant("tags")).
+		LeftJoin(tenant("message_tags"), tenant("tags.ID")+"="+tenant("message_tags."+messageTagsTagIDColumn())).
 		Where(tenant("message_tags.ID")+` = ?`, id).
 		OrderBy("Name").
 		QueryAndClose(context.TODO(), db, func(row *sql.Rows) {

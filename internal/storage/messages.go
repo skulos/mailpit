@@ -94,14 +94,17 @@ func Store(body *[]byte, username *string) (string, error) {
 	attachments := len(env.Attachments)
 	snippet := tools.CreateSnippet(env.Text, env.HTML)
 
+	placeholders := "?,?,?,?,?,?,?,?,?,?,?" // default for sqlite/rqlite
+	if sqlDriver == "postgres" {
+		placeholders = "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11"
+	}
+
 	sql := fmt.Sprintf(`INSERT INTO %s 
-    	(Created, ID, MessageID, Subject, Metadata, Size, Inline, Attachments, SearchText, Read, Snippet) 
-	    VALUES(?,?,?,?,?,?,?,?,?,0,?)`,
-		tenant("mailbox"),
-	) // #nosec
+		(Created, ID, Message_ID, Subject, Metadata, Size, Inline, Attachments, Search_Text, Read, Snippet) 
+		VALUES(%s)`, tenant("mailbox"), placeholders)
 
 	// insert mail summary data
-	_, err = tx.Exec(sql, created.UnixMilli(), id, messageID, subject, string(summaryJSON), size, inline, attachments, searchText, snippet)
+	_, err = tx.Exec(sql, created.UnixMilli(), id, messageID, subject, string(summaryJSON), size, inline, attachments, searchText, 0, snippet)
 	if err != nil {
 		return "", err
 	}
@@ -110,17 +113,41 @@ func Store(body *[]byte, username *string) (string, error) {
 		// insert compressed raw message
 		compressed := dbEncoder.EncodeAll(*body, make([]byte, 0, size))
 
-		if sqlDriver == "rqlite" {
-			// rqlite does not support binary data in query, so we need to encode the compressed message into hexadecimal
-			// string and then generate the SQL query, which is more memory intensive, especially with large messages
+		switch sqlDriver {
+		case "rqlite":
+			// rqlite does not support binary data, encode as hex
 			hexStr := hex.EncodeToString(compressed)
-			_, err = tx.Exec(fmt.Sprintf(`INSERT INTO %s (ID, Email, Compressed) VALUES(?, x'%s', 1)`, tenant("mailbox_data"), hexStr), id) // #nosec
-		} else {
-			_, err = tx.Exec(fmt.Sprintf(`INSERT INTO %s (ID, Email, Compressed) VALUES(?, ?, 1)`, tenant("mailbox_data")), id, compressed) // #nosec
+			_, err = tx.Exec(
+				fmt.Sprintf(`INSERT INTO %s (ID, Email, Compressed) VALUES(?, x'%s', 1)`, tenant("mailbox_data"), hexStr),
+				id,
+			) // #nosec
+
+		case "postgres":
+			// PostgreSQL supports bytea for binary data, use $1, $2 placeholders
+			sql := fmt.Sprintf(`INSERT INTO %s (ID, Email, Compressed) VALUES($1, $2, 1)`, tenant("mailbox_data"))
+			_, err = tx.Exec(sql, id, compressed)
+
+		default: // sqlite
+			_, err = tx.Exec(
+				fmt.Sprintf(`INSERT INTO %s (ID, Email, Compressed) VALUES(?, ?, 1)`, tenant("mailbox_data")),
+				id,
+				compressed,
+			) // #nosec
 		}
 	} else {
 		// insert uncompressed raw message
-		_, err = tx.Exec(fmt.Sprintf(`INSERT INTO %s (ID, Email, Compressed) VALUES(?, ?, 0)`, tenant("mailbox_data")), id, string(*body)) // #nosec
+		switch sqlDriver {
+		case "postgres":
+			sql := fmt.Sprintf(`INSERT INTO %s (ID, Email, Compressed) VALUES($1, $2, 0)`, tenant("mailbox_data"))
+			_, err = tx.Exec(sql, id, *body)
+
+		default: // sqlite / rqlite
+			_, err = tx.Exec(
+				fmt.Sprintf(`INSERT INTO %s (ID, Email, Compressed) VALUES(?, ?, 0)`, tenant("mailbox_data")),
+				id,
+				*body,
+			) // #nosec
+		}
 	}
 
 	if err != nil {
@@ -692,8 +719,24 @@ func DeleteMessages(ids []string) error {
 
 	tables := []string{"mailbox", "mailbox_data", "message_tags"}
 
+	// buildPlaceholders builds an IN list placeholders string according to driver
+	buildPlaceholders := func(n int) string {
+		if n <= 0 {
+			return "()"
+		}
+		if sqlDriver == "postgres" {
+			parts := make([]string, n)
+			for i := 0; i < n; i++ {
+				parts[i] = fmt.Sprintf("$%d", i+1)
+			}
+			return "(" + strings.Join(parts, ",") + ")"
+		}
+		// default uses ? placeholders
+		return "(" + "?" + strings.Repeat(",?", n-1) + ")"
+	}
+
 	for _, t := range tables {
-		sql = fmt.Sprintf(`DELETE FROM %s WHERE ID IN (?%s)`, tenant(t), strings.Repeat(",?", len(ids)-1))
+		sql = fmt.Sprintf(`DELETE FROM %s WHERE ID IN %s`, tenant(t), buildPlaceholders(len(args)))
 
 		_, err = tx.Exec(sql, args...) // #nosec
 		if err != nil {

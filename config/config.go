@@ -54,6 +54,29 @@ var (
 	// allowing multiple isolated instances of Mailpit to share a database.
 	TenantID string
 
+	// PostgreSQL configuration (used when Database is a postgres DSN and individual components are provided)
+	// PostgresHost is the PostgreSQL server host
+	PostgresHost string
+
+	// PostgresPort is the PostgreSQL server port
+	PostgresPort string
+
+	// PostgresDBName is the PostgreSQL database name
+	PostgresDBName string
+
+	// PostgresUser is the PostgreSQL username
+	PostgresUser string
+
+	// PostgresPassword is the PostgreSQL password
+	PostgresPassword string
+
+	// PostgresSSLMode is the PostgreSQL SSL mode (disable, require, verify-ca, verify-full)
+	PostgresSSLMode string
+
+	// PostgresSocket is the directory of the PostgreSQL Unix domain socket to connect via
+	// If set, this will be used instead of PostgresHost and PostgresPort
+	PostgresSocket string
+
 	// Label to identify this Mailpit instance (optional).
 	// This gets applied to web UI, SMTP and optional POP3 server.
 	Label string
@@ -67,6 +90,9 @@ var (
 
 	// MaxAgeInHours is the maximum age of messages in hours, set with parseMaxAge() using MaxAge value
 	MaxAgeInHours int
+
+	// KeepEmailsForever disables automatic pruning of emails based on MaxMessages and MaxAge
+	KeepEmailsForever bool
 
 	// UseMessageDates sets the Created date using the message date, not the delivered date
 	UseMessageDates bool
@@ -226,6 +252,9 @@ var (
 
 	// DemoMode disables SMTP relay, link checking & HTTP send functionality
 	DemoMode = false
+
+	// DBDriver allows explicit selection of the database driver (sqlite, postgres, rqlite)
+	DBDriver string
 )
 
 // AutoTag struct for auto-tagging

@@ -49,6 +49,10 @@ func dbCron() {
 // PruneMessages will auto-delete the oldest messages if messages > config.MaxMessages.
 // Set config.MaxMessages to 0 to disable.
 func pruneMessages() {
+	if config.KeepEmailsForever {
+		return
+	}
+	
 	if config.MaxMessages < 1 && config.MaxAgeInHours == 0 {
 		return
 	}
@@ -181,28 +185,10 @@ func pruneMessages() {
 
 // Vacuum the database to reclaim space from deleted messages
 func vacuumDb() {
-	if sqlDriver == "rqlite" {
-		// let rqlite handle vacuuming
-		return
-	}
-
 	start := time.Now()
 
-	// set WAL file checkpoint
-	if _, err := db.Exec("PRAGMA wal_checkpoint"); err != nil {
-		logger.Log().Errorf("[db] %s", err.Error())
-		return
-	}
-
-	// vacuum database
-	if _, err := db.Exec("VACUUM"); err != nil {
+	if err := db.Vacuum(); err != nil {
 		logger.Log().Errorf("[db] VACUUM: %s", err.Error())
-		return
-	}
-
-	// truncate WAL file
-	if _, err := db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
-		logger.Log().Errorf("[db] %s", err.Error())
 		return
 	}
 
